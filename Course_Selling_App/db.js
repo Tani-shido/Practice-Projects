@@ -8,27 +8,40 @@ const userSchema = new Schema({
     password: String,
     firstName: String,
     lastName: String
-});
+}, {timestamps: true});
 
 const adminSchema = new Schema({
     email: {type: String , unique: true},
     password: String,
     firstName: String,
     lastName: String 
-});
+}, {timestamps: true});
 
 const courseSchema = new Schema({
-    title: String,
+    title: {type: String, required: true},
     description: String,
-    price: Number,
+    isFree: {
+        type: Boolean,
+        default: false
+    },
+    price: {
+        type: Number,
+        required: function(){
+            return !this.isFree;
+        }
+    },
+    isPublished: {
+        type: Boolean,
+        default: false
+    },
     imageUrl: String,
-    creatorId: ObjectId
-});
+    creatorId: {type: ObjectId, ref: "admin"}
+}, {timestamps: true});
 
 const purchaseSchema = new Schema({
     userId: {type: ObjectId , ref: "user"},
     courseId: {type: ObjectId , ref: "course"}
-});
+}, {timestamps: true});
 
 const userModel = mongoose.model("user" , userSchema);
 const adminModel = mongoose.model("admin" , adminSchema);
