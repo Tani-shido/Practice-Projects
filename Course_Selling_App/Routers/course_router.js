@@ -3,19 +3,26 @@ const courseRouter = Router();
 const { courseModel } = require("../db");
 
 courseRouter.get("/preview" , async function (req , res) {
-    try {
-        const courses = await courseModel.find({});
-        res.json({
-            message: "These are the all the courses",
-            courses
-        });
-    }
-    catch(e) {
-        res.status(403).json({
-            message: "Courses are not loading"
-        });
-    }
-});
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const courses = await courseModel.find({ isPublished: true })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .populate('creatorId', 'firstName lastName');
+            const totalCourses = await courseModel.countDocuments({ isPublished: true });
+
+            res.json({
+                message: "Showing all published courses",
+                data: {
+                    courses,
+                    totalPages: Math.ceil(totalCourses / limit),
+                    currentPage: page,
+                }
+            });
+    });
 
 module.exports = {
     courseRouter: courseRouter
