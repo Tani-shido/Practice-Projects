@@ -12,7 +12,6 @@ const { z } = require("zod");
 
 // Route 1: Sign Up
 userRouter.post("/signup", async function (req, res) {
-    try {
         const requiredBody = z.object({
             email: z.string().email(),
             password: z.string().min(6),
@@ -22,14 +21,13 @@ userRouter.post("/signup", async function (req, res) {
         const parsedDataWithSuccess = requiredBody.safeParse(req.body);
 
         if (!parsedDataWithSuccess.success) {
-            return res.json({
+            return res.status(400).json({
                 message: "Incorrect Format",
-                error: parsedDataWithSuccess.error
+                error: parsedDataWithSuccess.error.flatten()
             });
-
         }
 
-        const { email, password, firstName, lastName } = req.body;
+        const { email, password, firstName, lastName } = parsedDataWithSuccess.data;
 
         const mailIdCheck = await userModel.findOne({ email: email });
 
@@ -39,7 +37,7 @@ userRouter.post("/signup", async function (req, res) {
             });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 15);
+        const hashedPassword = await bcrypt.hash(password, 12);
 
         await userModel.create({
             email: email,
@@ -50,20 +48,12 @@ userRouter.post("/signup", async function (req, res) {
 
         res.json({
             message: "You are signed up"
-        });
-    }
-    catch (e) {
-        res.status(403).json({
-            message: "Incorrect format"
-        });
-    }
+        }); 
 });
 
 // Route 2: Sign In
 userRouter.post("/signin", async function (req, res) {
-    try {
         const { email, password } = req.body;
-
 
         const user = await userModel.findOne({
             email: email,
@@ -83,38 +73,31 @@ userRouter.post("/signin", async function (req, res) {
             });
         }
         else {
-            res.status(403).json({
+            res.status(401).json({
                 message: "You are not signed in (Wrong Credentials)"
             });
         }
-    }
-    catch (e) {
-        res.status(403).json({
-            message: "Wrong Credentials"
-        });
-    }
-
 });
 
 // Route 3: Purchase a couse
 userRouter.post("/purchase", usermiddleware, async function (req, res) {
-    const userId = req.userId;
-    const courseId = req.body.courseId;
+        const userId = req.userId;
+        const courseId = req.body.courseId;
 
-    try {
+        const existingPurchase = await purchaseModel.findOne({userId, courseId});
+        if(existingPurchase) {
+            return res.status(409).json({
+                message: "You have already purchased this course"
+            })
+        }
+
         await purchaseModel.create({
             userId,
             courseId
         });
         res.json({
-            message: "Course is purchased"
+            message: "Congratulations: Course is purchased"
         });
-    }
-    catch (e) {
-        res.status(403).json({
-            message: `Error 'Course is not purchased'`
-        });
-    }
 });
 
 // // Route 4: View Purchased course
@@ -122,11 +105,10 @@ userRouter.get("/mycourses", usermiddleware, async function (req, res) {
     const user = req.userId;
 
     if (!user) {
-        return res.status(403).json({ message: "Authentication error, user ID not found." });
+        return res.status(403).json({ message: "Authentication error, user not found." });
     }
 
-    try {
-        const courses = await purchaseModel.find({
+    const courses = await purchaseModel.find({
             userId: user
         }).populate("courseId");
 
@@ -135,14 +117,12 @@ userRouter.get("/mycourses", usermiddleware, async function (req, res) {
         res.json({
             message: "Your all courses",
             courses: myCourses
-        })
-    }
-    catch (e) {
-        console.error("Error fetching user's courses:");
-        res.status(500).json({ message: "An error occurred while fetching your courses." });
-    }
+        });
 });
 
 module.exports = {
     userRouter: userRouter
 }
+
+
+
